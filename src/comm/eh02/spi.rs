@@ -3,6 +3,7 @@
 use crate::comm::Interface;
 use crate::register::Register;
 
+use embedded_hal_02 as embedded_hal;
 use embedded_hal::blocking::spi;
 use embedded_hal::digital::v2::OutputPin;
 use heapless::Vec;

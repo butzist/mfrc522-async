@@ -2,6 +2,7 @@
 //! that are available for the MFRC522.
 
 pub mod blocking;
+pub mod eh02;
 
 use crate::register::Register;
 

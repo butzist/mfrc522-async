@@ -3,9 +3,9 @@
 use crate::comm::Interface;
 use crate::register::Register;
 
-use embedded_hal_02 as embedded_hal;
 use embedded_hal::blocking::spi;
 use embedded_hal::digital::v2::OutputPin;
+use embedded_hal_02 as embedded_hal;
 use heapless::Vec;
 
 /// Type to represent *'no software controlled NSS'*.
@@ -118,7 +118,8 @@ where
         let mut vec = Vec::<u8, 65>::new();
         let n = buf.len();
         for _ in 0..n {
-            vec.push(reg.read_address()).map_err(|_| Error::BufferTooLarge)?;
+            vec.push(reg.read_address())
+                .map_err(|_| Error::BufferTooLarge)?;
         }
         vec.push(0).map_err(|_| Error::BufferTooLarge)?;
 
@@ -147,8 +148,10 @@ where
     fn write_many(&mut self, reg: Register, bytes: &[u8]) -> Result<(), Self::Error> {
         self.wrap_transfer(|mfr| {
             let mut vec = Vec::<u8, 65>::new();
-            vec.push(reg.write_address()).map_err(|_| Error::BufferTooLarge)?;
-            vec.extend_from_slice(bytes).map_err(|_| Error::BufferTooLarge)?;
+            vec.push(reg.write_address())
+                .map_err(|_| Error::BufferTooLarge)?;
+            vec.extend_from_slice(bytes)
+                .map_err(|_| Error::BufferTooLarge)?;
             mfr.spi.write(vec.as_slice()).map_err(Error::Spi)?;
 
             Ok(())

@@ -9,8 +9,8 @@
 //! - P9.21 = SPI0_D0   = MISO (config-pin P9.21 spi)
 //! - P9.22 = SPI0_SCLK = SCLK (config-pin P9.22 spi_sclk)
 
-use linux_embedded_hal as hal;
 use embedded_hal_02 as embedded_hal;
+use linux_embedded_hal as hal;
 
 use std::fs::File;
 use std::io::Write;
@@ -19,8 +19,8 @@ use embedded_hal::blocking::delay::DelayMs;
 use hal::spidev::{SpiModeFlags, SpidevOptions};
 use hal::sysfs_gpio::Direction;
 use hal::{Delay, Pin, Spidev};
-use mfrc522::{Mfrc522, Initialized};
-use mfrc522::comm::{Interface, eh02::spi::SpiInterface};
+use mfrc522::comm::{eh02::spi::SpiInterface, Interface};
+use mfrc522::{Initialized, Mfrc522};
 
 // NOTE this requires tweaking permissions and configuring LED0
 //

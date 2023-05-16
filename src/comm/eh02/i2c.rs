@@ -20,10 +20,7 @@ where
 {
     /// Create a new I2C interface.
     pub fn new(i2c: I2C, addr: u8) -> Self {
-        Self {
-            i2c,
-            addr,
-        }
+        Self { i2c, addr }
     }
 }
 
@@ -64,4 +61,3 @@ where
         Ok(())
     }
 }
-

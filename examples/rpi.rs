@@ -11,8 +11,8 @@
 //! - GPIO11 = SCLK (SCK)
 //! - GPIO22 = NSS  (SDA)
 
-use linux_embedded_hal as hal;
 use embedded_hal_02 as embedded_hal;
+use linux_embedded_hal as hal;
 
 use std::fs::File;
 use std::io::Write;
@@ -24,8 +24,8 @@ use embedded_hal::digital::v2::OutputPin;
 use hal::spidev::{SpiModeFlags, SpidevOptions};
 use hal::sysfs_gpio::Direction;
 use hal::{Delay, Pin, Spidev};
-use mfrc522::{Mfrc522, Initialized};
-use mfrc522::comm::{Interface, eh02::spi::SpiInterface};
+use mfrc522::comm::{eh02::spi::SpiInterface, Interface};
+use mfrc522::{Initialized, Mfrc522};
 
 // NOTE this requires tweaking permissions and configuring LED0
 //

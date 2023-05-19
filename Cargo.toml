@@ -22,7 +22,7 @@ heapless = "0.7"
 
 [dev-dependencies]
 embedded-hal-mock-02 = { version = "0.9", package = "embedded-hal-mock" }
-embedded-hal-mock-1 = { package="embedded-hal-mock", git="https://github.com/tomgilligan/embedded-hal-mock.git", branch="1-alpha" }
+embedded-hal-mock-1 = { package="embedded-hal-mock", git="https://github.com/dbrgn/embedded-hal-mock.git", branch="1-alpha" }
 anyhow = "1.0"
 
 [target.'cfg(target_os = "linux")'.dev-dependencies]

@@ -114,19 +114,6 @@ impl From<Register> for u8 {
     }
 }
 
-impl Register {
-    const R: u8 = 1 << 7;
-    const W: u8 = 0 << 7;
-
-    pub fn read_address(&self) -> u8 {
-        ((*self as u8) << 1) | Self::R
-    }
-
-    pub fn write_address(&self) -> u8 {
-        ((*self as u8) << 1) | Self::W
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 /// List of different commands for the MFRC522

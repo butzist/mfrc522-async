@@ -105,7 +105,7 @@ where
 {
     type Error = Error<E>;
     fn read(&mut self, reg: Register) -> Result<u8, Self::Error> {
-        let mut buffer = [reg.read_address(), 0];
+        let mut buffer = [((reg as u8) << 1) | 0x80, 0];
 
         self.wrap_transfer(|mfr| {
             let buffer = mfr.spi.transfer(&mut buffer).map_err(Error::Spi)?;
@@ -118,7 +118,7 @@ where
         let mut vec = Vec::<u8, 65>::new();
         let n = buf.len();
         for _ in 0..n {
-            vec.push(reg.read_address())
+            vec.push(((reg as u8) << 1) | 0x80)
                 .map_err(|_| Error::BufferTooLarge)?;
         }
         vec.push(0).map_err(|_| Error::BufferTooLarge)?;
@@ -138,17 +138,13 @@ where
     }
 
     fn write(&mut self, reg: Register, val: u8) -> Result<(), Self::Error> {
-        self.wrap_transfer(|mfr| {
-            mfr.spi
-                .write(&[reg.write_address(), val])
-                .map_err(Error::Spi)
-        })
+        self.wrap_transfer(|mfr| mfr.spi.write(&[(reg as u8) << 1, val]).map_err(Error::Spi))
     }
 
     fn write_many(&mut self, reg: Register, bytes: &[u8]) -> Result<(), Self::Error> {
         self.wrap_transfer(|mfr| {
             let mut vec = Vec::<u8, 65>::new();
-            vec.push(reg.write_address())
+            vec.push((reg as u8) << 1)
                 .map_err(|_| Error::BufferTooLarge)?;
             vec.extend_from_slice(bytes)
                 .map_err(|_| Error::BufferTooLarge)?;

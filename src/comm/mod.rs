@@ -1,6 +1,7 @@
 //! Contains implementations for the different communication interfaces
 //! that are available for the MFRC522.
 
+#[cfg(feature = "eh1")]
 pub mod blocking;
 pub mod eh02;
 

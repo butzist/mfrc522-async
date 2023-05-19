@@ -61,3 +61,100 @@ where
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::comm::eh02::i2c::I2cInterface;
+    use crate::comm::Interface;
+    use embedded_hal_mock_02::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+
+    #[test]
+    pub fn test_read() {
+        let expectations = [I2cTransaction::write_read(
+            0x2C,
+            [0x0B].to_vec(),
+            [0x37].to_vec(),
+        )];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut i2c_clone = i2c.clone();
+
+        assert_eq!(
+            I2cInterface::new(i2c, 0x2C).read(crate::register::Register::WaterLevelReg),
+            Ok(0x37)
+        );
+
+        i2c_clone.done();
+    }
+
+    #[test]
+    pub fn test_read_many_2() {
+        let expectations = [I2cTransaction::write_read(
+            0x2C,
+            [0x15].to_vec(),
+            [0x12, 0x23].to_vec(),
+        )];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut i2c_clone = i2c.clone();
+
+        let mut buffer = [0u8; 2];
+        I2cInterface::new(i2c, 0x2C)
+            .read_many(crate::register::Register::TxASKReg, &mut buffer)
+            .unwrap();
+        assert_eq!(buffer, [0x12, 0x23]);
+
+        i2c_clone.done();
+    }
+
+    #[test]
+    pub fn test_read_many_3() {
+        let expectations = [I2cTransaction::write_read(
+            0x2C,
+            [0x15].to_vec(),
+            [0x12, 0x23, 0x34].to_vec(),
+        )];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut i2c_clone = i2c.clone();
+
+        let mut buffer = [0u8; 3];
+        I2cInterface::new(i2c, 0x2C)
+            .read_many(crate::register::Register::TxASKReg, &mut buffer)
+            .unwrap();
+        assert_eq!(buffer, [0x12, 0x23, 0x34]);
+
+        i2c_clone.done();
+    }
+
+    #[test]
+    pub fn test_write() {
+        let expectations = [I2cTransaction::write(0x2C, [0x21, 0xfd].to_vec())];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut i2c_clone = i2c.clone();
+
+        I2cInterface::new(i2c, 0x2C)
+            .write(crate::register::Register::CRCResultRegHigh, 0xfd)
+            .unwrap();
+
+        i2c_clone.done();
+    }
+
+    #[test]
+    pub fn test_write_many() {
+        let expectations = [I2cTransaction::write(
+            0x2C,
+            [0x27, 0xca, 0xfe, 0xf0, 0x0d].to_vec(),
+        )];
+
+        let i2c = I2cMock::new(&expectations);
+        let mut i2c_clone = i2c.clone();
+
+        I2cInterface::new(i2c, 0x2C)
+            .write_many(crate::register::Register::GsNReg, &[0xca, 0xfe, 0xf0, 0x0d])
+            .unwrap();
+
+        i2c_clone.done();
+    }
+}

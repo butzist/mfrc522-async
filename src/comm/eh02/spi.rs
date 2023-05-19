@@ -23,7 +23,7 @@ pub struct SpiInterface<SPI, NSS, D> {
     delay: D,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error<E> {
     /// An error `E` occurred in the underlying SPI interface.
     Spi(E),
@@ -234,5 +234,98 @@ where
         (self.delay)();
 
         result
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::comm::eh02::spi::SpiInterface;
+    use crate::comm::Interface;
+    use embedded_hal_mock_02::spi::{Mock as SpiMock, Transaction as SpiTransaction};
+
+    #[test]
+    pub fn test_read() {
+        let expectations = [SpiTransaction::transfer(
+            [0x96, 0x00].to_vec(),
+            [0x11, 0x37].to_vec(),
+        )];
+
+        let spi = SpiMock::new(&expectations);
+        let mut spi_clone = spi.clone();
+
+        assert_eq!(
+            SpiInterface::new(spi).read(crate::register::Register::WaterLevelReg),
+            Ok(0x37)
+        );
+
+        spi_clone.done();
+    }
+
+    #[test]
+    pub fn test_write() {
+        let expectations = [SpiTransaction::write([0x42, 0xfd].to_vec())];
+
+        let spi = SpiMock::new(&expectations);
+        let mut spi_clone = spi.clone();
+
+        SpiInterface::new(spi)
+            .write(crate::register::Register::CRCResultRegHigh, 0xfd)
+            .unwrap();
+
+        spi_clone.done();
+    }
+
+    #[test]
+    pub fn test_write_many() {
+        let expectations = [SpiTransaction::write(
+            [0x4E, 0xca, 0xfe, 0xf0, 0x0d].to_vec(),
+        )];
+
+        let spi = SpiMock::new(&expectations);
+        let mut spi_clone = spi.clone();
+
+        SpiInterface::new(spi)
+            .write_many(crate::register::Register::GsNReg, &[0xca, 0xfe, 0xf0, 0x0d])
+            .unwrap();
+
+        spi_clone.done();
+    }
+
+    #[test]
+    pub fn test_read_many_2() {
+        let expectations = [SpiTransaction::transfer(
+            [0xAA, 0xAA, 0x00].to_vec(),
+            [0x69, 0x12, 0x23].to_vec(),
+        )];
+
+        let spi = SpiMock::new(&expectations);
+        let mut spi_clone = spi.clone();
+
+        let mut buffer = [0u8; 2];
+        SpiInterface::new(spi)
+            .read_many(crate::register::Register::TxASKReg, &mut buffer)
+            .unwrap();
+        assert_eq!(buffer, [0x12, 0x23]);
+
+        spi_clone.done();
+    }
+
+    #[test]
+    pub fn test_read_many_3() {
+        let expectations = [SpiTransaction::transfer(
+            [0xAA, 0xAA, 0xAA, 0x00].to_vec(),
+            [0x69, 0x12, 0x23, 0x34].to_vec(),
+        )];
+
+        let spi = SpiMock::new(&expectations);
+        let mut spi_clone = spi.clone();
+
+        let mut buffer = [0u8; 3];
+        SpiInterface::new(spi)
+            .read_many(crate::register::Register::TxASKReg, &mut buffer)
+            .unwrap();
+        assert_eq!(buffer, [0x12, 0x23, 0x34]);
+
+        spi_clone.done();
     }
 }

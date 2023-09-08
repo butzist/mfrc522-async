@@ -145,7 +145,7 @@ where
 mod test {
     use crate::comm::blocking::spi::SpiInterface;
     use crate::comm::Interface;
-    use embedded_hal_mock_1::spi::{Mock as SpiMock, Transaction as SpiTransaction};
+    use embedded_hal_mock_1::eh1::spi::{Mock as SpiMock, Transaction as SpiTransaction};
 
     #[test]
     pub fn test_read() {

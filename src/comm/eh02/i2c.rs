@@ -66,7 +66,7 @@ where
 mod test {
     use crate::comm::eh02::i2c::I2cInterface;
     use crate::comm::Interface;
-    use embedded_hal_mock_02::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+    use embedded_hal_mock::eh0::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
 
     #[test]
     pub fn test_read() {

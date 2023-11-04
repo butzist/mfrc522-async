@@ -2,7 +2,7 @@
 mod test_eh02_spi {
     use crate::comm::eh02::spi::SpiInterface;
     use crate::Mfrc522;
-    use embedded_hal_mock_02::spi::{Mock as SpiMock, Transaction as SpiTransaction};
+    use embedded_hal_mock::eh0::spi::{Mock as SpiMock, Transaction as SpiTransaction};
 
     #[test]
     pub fn test_calculate_crc() {
@@ -73,7 +73,7 @@ mod test_eh02_spi {
 mod test_eh02_i2c {
     use crate::comm::eh02::i2c::I2cInterface;
     use crate::Mfrc522;
-    use embedded_hal_mock_02::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+    use embedded_hal_mock::eh0::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
 
     #[test]
     pub fn test_calculate_crc() {
@@ -141,7 +141,7 @@ mod test_eh02_i2c {
 mod test_eh1_spi {
     use crate::comm::blocking::spi::SpiInterface;
     use crate::Mfrc522;
-    use embedded_hal_mock_1::eh1::spi::{Mock as SpiMock, Transaction as SpiTransaction};
+    use embedded_hal_mock::eh1::spi::{Mock as SpiMock, Transaction as SpiTransaction};
 
     #[test]
     pub fn test_calculate_crc() {
@@ -241,7 +241,7 @@ mod test_eh1_spi {
 mod test_eh1_i2c {
     use crate::comm::blocking::i2c::I2cInterface;
     use crate::Mfrc522;
-    use embedded_hal_mock_1::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+    use embedded_hal_mock::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
 
     #[test]
     pub fn test_calculate_crc() {

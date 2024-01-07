@@ -298,7 +298,7 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
                 // This makes it easier to append the received bits to the uid (in `tx`).
                 match self.transceive::<5>(&tx[0..end], tx_last_bits, tx_last_bits) {
                     Ok(fifo_data) => {
-                        fifo_data.copy_bits_to(&mut tx[2..=6], known_bits);
+                        fifo_data.copy_bits_to(&mut tx[2..=6], known_bits)?;
                         break 'anticollision;
                     }
                     Err(Error::Collision) => {
@@ -316,7 +316,7 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
                             return Err(Error::Collision);
                         }
                         let fifo_data = self.fifo_data::<5>()?;
-                        fifo_data.copy_bits_to(&mut tx[2..=6], known_bits);
+                        fifo_data.copy_bits_to(&mut tx[2..=6], known_bits)?;
                         known_bits = coll_pos;
 
                         // Set the bit of collision position to 1
@@ -666,10 +666,10 @@ impl<const L: usize> FifoData<L> {
     /// Copies FIFO data to destination buffer.
     /// Assumes the FIFO data is aligned properly to append directly to the current known bits.
     /// Returns the number of valid bits in the destination buffer after copy.
-    pub fn copy_bits_to(&self, dst: &mut [u8], dst_valid_bits: u8) -> u8 {
+    pub fn copy_bits_to<E>(&self, dst: &mut [u8], dst_valid_bits: u8) -> Result<u8, Error<E>> {
         if self.valid_bytes == 0 {
             // nothing to copy
-            return dst_valid_bits;
+            return Ok(dst_valid_bits);
         }
 
         let dst_valid_bytes = dst_valid_bits / 8;
@@ -679,9 +679,13 @@ impl<const L: usize> FifoData<L> {
         dst[idx] = (self.buffer[0] & mask) | (dst[idx] & !mask);
         idx += 1;
         let len = self.valid_bytes - 1;
+        if len + idx > dst.len() {
+            // TODO: this should not happen, but has been reported nonetheless...
+            return Err(Error::NoRoom);
+        }
         if len > 0 {
             dst[idx..idx + len].copy_from_slice(&self.buffer[1..=len]);
         }
-        dst_valid_bits + (len * 8) as u8 + self.valid_bits as u8
+        Ok(dst_valid_bits + (len * 8) as u8 + self.valid_bits as u8)
     }
 }

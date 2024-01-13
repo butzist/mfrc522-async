@@ -15,51 +15,39 @@
 //!
 //! # Quickstart
 //! ```rust
-//!# pub mod gpio {
-//!#     use embedded_hal_02::digital::v2::{OutputPin, PinState};
-//!#     pub struct Output;
-//!#     #[derive(Debug)]
-//!#     pub struct Error;
-//!#     impl OutputPin for Output {
-//!#         type Error = Error;
-//!#         fn set_low(&mut self) -> Result<(), Self::Error> { Ok(()) }
-//!#         fn set_high(&mut self) -> Result<(), Self::Error> { Ok(()) }
-//!#         fn set_state(&mut self, state: PinState) -> Result<(), Self::Error> { Ok(()) }
-//!#     }
-//!# }
 //!# pub mod spi {
-//!#     use embedded_hal_02::blocking::spi as eh_spi;
+//!#     use embedded_hal_1::spi::{self, SpiDevice, Operation};
 //!#     pub struct Spi;
 //!#     #[derive(Debug)]
 //!#     pub struct Error;
-//!#     impl eh_spi::Write<u8> for Spi {
-//!#         type Error = Error;
-//!#         fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> { Ok(()) }
+//!#     impl spi::Error for Error {
+//!#         fn kind(&self) -> spi::ErrorKind { spi::ErrorKind::Other }
 //!#     }
-//!#     impl eh_spi::Transfer<u8> for Spi {
+//!#     impl spi::ErrorType for Spi {
 //!#         type Error = Error;
-//!#         fn transfer<'w>(
+//!#     }
+//!#     impl SpiDevice for Spi {
+//!#         fn transaction(
 //!#             &mut self,
-//!#             words: &'w mut [u8]
-//!#         ) -> Result<&'w [u8], Self::Error> { Ok(&[0, 0]) }
+//!#             operations: &mut [Operation<u8>]
+//!#         ) -> Result<(), Self::Error> { Ok(()) }
 //!#     }
 //!# }
-//! use mfrc522::comm::eh02::spi::SpiInterface;
+//! use mfrc522::comm::blocking::spi::SpiInterface;
 //! use mfrc522::Mfrc522;
 //!
-//! // create an SPI device that implements the embedded-hal `spi::Transfer` and `spi::Write` traits
+//! // Use your HAL to create an SPI device that implements the embedded-hal `SpiDevice` trait.
+//! // This device manages the SPI bus and CS pin.
 //! let spi = spi::Spi;
-//! // create a GPIO output for chip-select control
-//! let cs = gpio::Output;
 //!
-//! let itf = SpiInterface::new(spi).with_nss(cs);
+//! let itf = SpiInterface::new(spi);
 //! let mut mfrc522 = Mfrc522::new(itf).init().unwrap();
 //!
 //! // The reported version is expected to be 0x91 or 0x92
 //! let mfrc522_version = mfrc522.version().unwrap();
 //! ```
 //!
-//! Take a look at [SpiInterface](comm::eh02::spi::SpiInterface) for options when creating
+//! Take a look at [SpiInterface](comm::blocking::spi::SpiInterface) for options when creating
 //! the communication interface, and [Mfrc522] for information on the functions
 //! that are available after initialization.
 //!

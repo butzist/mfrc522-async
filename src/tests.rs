@@ -146,27 +146,47 @@ mod test_eh1_spi {
     #[test]
     pub fn test_calculate_crc() {
         let expectations = [
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x02, 0x00].to_vec()),
+            SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x0A, 0x04].to_vec()),
+            SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x14, 0x80].to_vec()),
+            SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x12].to_vec()),
             SpiTransaction::write_vec([0x01, 0x02, 0x40].to_vec()),
             SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x02, 0x03].to_vec()),
+            SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x8A, 0x00].to_vec(), [0x23, 0x00].to_vec()),
             SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x8A, 0x00].to_vec(), [0x32, 0x1B].to_vec()),
             SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x8A, 0x00].to_vec(), [0x63, 0x1F].to_vec()),
             SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x02, 0x00].to_vec()),
+            SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0xC4, 0x00].to_vec(), [0x29, 0xbe].to_vec()),
             SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0xC2, 0x00].to_vec(), [0x93, 0xef].to_vec()),
             SpiTransaction::transaction_end(),
@@ -187,27 +207,46 @@ mod test_eh1_spi {
     #[test]
     pub fn test_transceive() {
         let expectations = [
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x02, 0x00].to_vec()),
+            SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x08, 0x7f].to_vec()),
+            SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x14, 0x80].to_vec()),
+            SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x12].to_vec()),
             SpiTransaction::write_vec([0xfe, 0xed].to_vec()),
             SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x02, 0x0C].to_vec()),
+            SpiTransaction::transaction_end(),
+
+            SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x1A, 0xA1].to_vec()),
+            SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x88, 0x00].to_vec(), [0x00, 0x04].to_vec()),
             SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x88, 0x00].to_vec(), [0x00, 0x02].to_vec()),
             SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x8C, 0x00].to_vec(), [0x00, 0x00].to_vec()),
             SpiTransaction::transaction_end(),
             SpiTransaction::transaction_start(),
             SpiTransaction::transfer_in_place([0x94, 0x00].to_vec(), [0x00, 0x04].to_vec()),
             SpiTransaction::transaction_end(),
+
             SpiTransaction::transaction_start(),
             SpiTransaction::write(0x92),
             SpiTransaction::transfer_in_place(

@@ -11,20 +11,18 @@
 //! - GPIO11 = SCLK (SCK)
 //! - GPIO22 = NSS  (SDA)
 
-use embedded_hal_02 as embedded_hal;
+use embedded_hal_1 as embedded_hal;
 use linux_embedded_hal as hal;
 
 use std::fs::File;
 use std::io::Write;
 
 use anyhow::Result;
-use embedded_hal::blocking::delay::DelayMs;
-use embedded_hal::blocking::spi::{Transfer as SpiTransfer, Write as SpiWrite};
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::delay::DelayNs;
+use embedded_hal_bus::spi::ExclusiveDevice;
 use hal::spidev::{SpiModeFlags, SpidevOptions};
-use hal::sysfs_gpio::Direction;
-use hal::{Delay, Pin, Spidev};
-use mfrc522::comm::{eh02::spi::SpiInterface, Interface};
+use hal::{Delay, SpidevBus, SysfsPin};
+use mfrc522::comm::{blocking::spi::SpiInterface, Interface};
 use mfrc522::{Initialized, Mfrc522};
 
 // NOTE this requires tweaking permissions and configuring LED0
@@ -58,23 +56,23 @@ fn main() -> Result<()> {
     let mut led = Led;
     let mut delay = Delay;
 
-    let mut spi = Spidev::open("/dev/spidev0.0").unwrap();
+    let mut spi = SpidevBus::open("/dev/spidev0.0").unwrap();
     let options = SpidevOptions::new()
         .max_speed_hz(1_000_000)
-        .mode(SpiModeFlags::SPI_MODE_0)
+        .mode(SpiModeFlags::SPI_MODE_0 | SpiModeFlags::SPI_NO_CS)
         .build();
     spi.configure(&options).unwrap();
 
     // software-controlled chip select pin
-    let pin = Pin::new(22);
+    let pin = SysfsPin::new(22)
+        .into_output_pin(embedded_hal::digital::PinState::High)
+        .unwrap();
     pin.export().unwrap();
     while !pin.is_exported() {}
     delay.delay_ms(1u32); // delay sometimes necessary because `is_exported()` returns too early?
-    pin.set_direction(Direction::Out).unwrap();
-    pin.set_value(1).unwrap();
 
-    // The `with_nss` method provides a GPIO pin to the driver for software controlled chip select.
-    let itf = SpiInterface::new(spi).with_nss(pin);
+    let spi = ExclusiveDevice::new(spi, pin, Delay);
+    let itf = SpiInterface::new(spi);
     let mut mfrc522 = Mfrc522::new(itf).init()?;
 
     let vers = mfrc522.version()?;

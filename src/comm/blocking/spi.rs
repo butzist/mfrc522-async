@@ -168,7 +168,11 @@ mod test {
 
     #[test]
     pub fn test_write() {
-        let expectations = [SpiTransaction::write_vec([0x42, 0xfd].to_vec())];
+        let expectations = [
+            SpiTransaction::transaction_start(),
+            SpiTransaction::write_vec([0x42, 0xfd].to_vec()),
+            SpiTransaction::transaction_end()
+        ];
 
         let spi = SpiMock::new(&expectations);
         let mut spi_clone = spi.clone();

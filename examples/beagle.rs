@@ -9,17 +9,16 @@
 //! - P9.21 = SPI0_D0   = MISO (config-pin P9.21 spi)
 //! - P9.22 = SPI0_SCLK = SCLK (config-pin P9.22 spi_sclk)
 
-use embedded_hal_02 as embedded_hal;
+use embedded_hal_1 as embedded_hal;
 use linux_embedded_hal as hal;
 
 use std::fs::File;
 use std::io::Write;
 
-use embedded_hal::blocking::delay::DelayMs;
+use embedded_hal::delay::DelayNs;
 use hal::spidev::{SpiModeFlags, SpidevOptions};
-use hal::sysfs_gpio::Direction;
-use hal::{Delay, Pin, Spidev};
-use mfrc522::comm::{eh02::spi::SpiInterface, Interface};
+use hal::{Delay, SpidevDevice};
+use mfrc522::comm::{blocking::spi::SpiInterface, Interface};
 use mfrc522::{Initialized, Mfrc522};
 
 // NOTE this requires tweaking permissions and configuring LED0
@@ -51,19 +50,12 @@ impl Led {
 }
 
 fn main() {
-    let mut spi = Spidev::open("/dev/spidev0.0").unwrap();
+    let mut spi = SpidevDevice::open("/dev/spidev0.0").unwrap();
     let options = SpidevOptions::new()
         .max_speed_hz(1_000_000)
         .mode(SpiModeFlags::SPI_MODE_0)
         .build();
     spi.configure(&options).unwrap();
-
-    // in case software controls the chip select (regular GPIO pin)
-    let pin = Pin::new(5); // P9.17 is GPIO5
-    pin.export().unwrap();
-    while !pin.is_exported() {}
-    pin.set_direction(Direction::Out).unwrap();
-    pin.set_value(1).unwrap();
 
     let mut led = Led;
     let mut delay = Delay;

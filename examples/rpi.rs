@@ -64,12 +64,11 @@ fn main() -> Result<()> {
     spi.configure(&options).unwrap();
 
     // software-controlled chip select pin
-    let pin = SysfsPin::new(22)
-        .into_output_pin(embedded_hal::digital::PinState::High)
-        .unwrap();
+    let pin = SysfsPin::new(22);
     pin.export().unwrap();
     while !pin.is_exported() {}
-    delay.delay_ms(1u32); // delay sometimes necessary because `is_exported()` returns too early?
+    delay.delay_ms(500u32); // delay sometimes necessary because `is_exported()` returns too early?
+    let pin = pin.into_output_pin(embedded_hal::digital::PinState::High).unwrap();
 
     let spi = ExclusiveDevice::new(spi, pin, Delay);
     let itf = SpiInterface::new(spi);

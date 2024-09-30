@@ -68,6 +68,7 @@ mod util;
 
 use comm::Interface;
 use error::Error;
+pub use picc::Type;
 use register::*;
 use util::Sealed;
 
@@ -90,6 +91,15 @@ impl Uid {
             Uid::Double(u) => u.as_bytes(),
             Uid::Triple(u) => u.as_bytes(),
         }
+    }
+
+    pub fn get_type(&self) -> Type {
+        match &self {
+            Uid::Single(u) => u.get_type(),
+            Uid::Double(u) => u.get_type(),
+            Uid::Triple(u) => u.get_type(),
+        }
+
     }
 }
 
@@ -117,6 +127,10 @@ impl<const T: usize> GenericUid<T> {
 
     pub fn is_compliant(&self) -> bool {
         self.sak.is_compliant()
+    }
+
+    pub fn get_type(&self) -> Type {
+        self.sak.get_type()
     }
 }
 

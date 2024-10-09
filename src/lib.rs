@@ -57,45 +57,50 @@
 //! - [Beaglebone Black](https://gitlab.com/jspngh/rfid-rs/-/blob/master/examples/beagle.rs)
 //! - [STM32L4](https://gitlab.com/jspngh/stm32l4-mfrc522)
 
+#![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod comm;
-pub mod error;
+mod error;
 mod picc;
 mod register;
 mod tests;
 mod util;
 
-use comm::Interface;
-use error::Error;
+pub use error::Error;
 pub use picc::Type;
 pub use register::RxGain;
+
+use comm::Interface;
 use register::*;
 use util::Sealed;
 
-const MIFARE_KEYSIZE: usize = 6;
-pub type MifareKey = [u8; MIFARE_KEYSIZE];
+/// Key used for MIFARE authentication
+pub type MifareKey = [u8; 6];
 
+/// The unique identifier returned by a PICC
 pub enum Uid {
     /// Single sized UID, 4 bytes long
     Single(GenericUid<4>),
     /// Double sized UID, 7 bytes long
     Double(GenericUid<7>),
-    /// Trip sized UID, 10 bytes long
+    /// Triple sized UID, 10 bytes long
     Triple(GenericUid<10>),
 }
 
 impl Uid {
+    /// Get the UID as a byte slice
     pub fn as_bytes(&self) -> &[u8] {
-        match &self {
+        match self {
             Uid::Single(u) => u.as_bytes(),
             Uid::Double(u) => u.as_bytes(),
             Uid::Triple(u) => u.as_bytes(),
         }
     }
 
+    /// Get the type of the PICC that returned the UID
     pub fn get_type(&self) -> Type {
-        match &self {
+        match self {
             Uid::Single(u) => u.get_type(),
             Uid::Double(u) => u.get_type(),
             Uid::Triple(u) => u.get_type(),
@@ -103,6 +108,9 @@ impl Uid {
     }
 }
 
+/// An identifier that is generic over the size.
+///
+/// This is used internally in the [Uid] enum.
 pub struct GenericUid<const T: usize>
 where
     [u8; T]: Sized,
@@ -114,6 +122,10 @@ where
 }
 
 impl<const T: usize> GenericUid<T> {
+    /// Create a GenericUid from a byte array and a SAK byte.
+    ///
+    /// You shouldn't typically need to use this function as an end-user.
+    /// Instead use the [Uid] returned by the [select](Mfrc522::select) function.
     pub fn new(bytes: [u8; T], sak_byte: u8) -> Self {
         Self {
             bytes,
@@ -121,14 +133,17 @@ impl<const T: usize> GenericUid<T> {
         }
     }
 
+    /// Get the underlying bytes of the UID
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
 
+    /// Is the PICC compliant?
     pub fn is_compliant(&self) -> bool {
         self.sak.is_compliant()
     }
 
+    /// Get the type of the PICC
     pub fn get_type(&self) -> Type {
         self.sak.get_type()
     }
@@ -379,11 +394,16 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
     }
 
     /// Switch off the MIFARE Crypto1 unit.
+    ///
     /// Must be done after communication with an authenticated PICC
     pub fn stop_crypto1(&mut self) -> Result<(), Error<E>> {
         self.rmw(Register::Status2Reg, |b| b & !0x08)
     }
 
+    /// Perform MIFARE authentication with a PICC.
+    ///
+    /// In order to successfully authenticate, you need to specify the correct key for the block
+    /// you are trying to read/write.
     pub fn mf_authenticate(
         &mut self,
         uid: &Uid,
@@ -429,6 +449,9 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
         Ok(())
     }
 
+    /// Send the MIFARE Read command to the PICC to read the given block.
+    ///
+    /// This should be done after [authentication](Mfrc522::mf_authenticate).
     pub fn mf_read(&mut self, block: u8) -> Result<[u8; 16], Error<E>> {
         let mut tx = [picc::Command::MfRead as u8, block, 0u8, 0u8];
 
@@ -445,6 +468,9 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
         Ok(rx[..16].try_into().unwrap())
     }
 
+    /// Send the MIFARE Write command to the PICC to write data to the given block.
+    ///
+    /// This should be done after [authentication](Mfrc522::mf_authenticate).
     pub fn mf_write(&mut self, block: u8, data: [u8; 16]) -> Result<(), Error<E>> {
         let mut cmd = [picc::Command::MfWrite as u8, block, 0, 0];
         let crc = self.calculate_crc(&cmd[0..2])?;
@@ -471,6 +497,7 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
         self.read(Register::VersionReg)
     }
 
+    /// Has a card been detected?
     pub fn new_card_present(&mut self) -> Result<AtqA, Error<E>> {
         self.write(Register::TxModeReg, 0x00)?;
         self.write(Register::RxModeReg, 0x00)?;
@@ -635,9 +662,10 @@ impl<E, COMM: Interface<Error = E>, S: State> Mfrc522<COMM, S> {
         while self.read(Register::CommandReg)? & POWER_DOWN != 0 {}
         Ok(())
     }
+}
 
-    // Convenience wrappers for the `Interface` methods
-
+// Convenience wrappers for the `Interface` methods
+impl<E, COMM: Interface<Error = E>, S: State> Mfrc522<COMM, S> {
     fn read(&mut self, reg: Register) -> Result<u8, Error<E>> {
         self.comm.read(reg).map_err(Error::Comm)
     }
@@ -676,7 +704,7 @@ impl<const L: usize> FifoData<L> {
     /// Copies FIFO data to destination buffer.
     /// Assumes the FIFO data is aligned properly to append directly to the current known bits.
     /// Returns the number of valid bits in the destination buffer after copy.
-    pub fn copy_bits_to<E>(&self, dst: &mut [u8], dst_valid_bits: u8) -> Result<u8, Error<E>> {
+    fn copy_bits_to<E>(&self, dst: &mut [u8], dst_valid_bits: u8) -> Result<u8, Error<E>> {
         if self.valid_bytes == 0 {
             // nothing to copy
             return Ok(dst_valid_bits);

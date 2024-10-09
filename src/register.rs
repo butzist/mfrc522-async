@@ -120,19 +120,19 @@ impl From<Register> for u8 {
 ///
 /// See the *RFCfgReg register* section in the datasheet
 pub enum RxGain {
-    // 18 dB, minimum
+    /// 18 dB, minimum
     // 0x20 is also an alias for it
     DB18 = 0x00,
-    // 23 dB
+    /// 23 dB
     // 0x30 is also an alias for it
     DB23 = 0x10,
-    // 33 dB, average
+    /// 33 dB, average
     DB33 = 0x40,
-    // 38 dB
+    /// 38 dB
     DB38 = 0x50,
-    // 43 dB
+    /// 43 dB
     DB43 = 0x60,
-    // 48 dB, maximum
+    /// 48 dB, maximum
     DB48 = 0x70,
 }
 

@@ -1,4 +1,4 @@
-/// Errors
+/// Error type used in this crate
 #[derive(Debug, PartialEq)]
 pub enum Error<E> {
     /// Wrong Block Character Check (BCC)

@@ -9,7 +9,9 @@ use crate::register::Register;
 
 /// Abstraction over the different communication interfaces
 pub trait Interface {
+    /// Associated error type
     type Error;
+
     /// Read the value of a register
     fn read(&mut self, reg: Register) -> Result<u8, Self::Error>;
     /// Read the value of a register larger than a single byte (the FIFO)

@@ -57,9 +57,9 @@ pub enum Command {
 }
 
 /// PICC Type
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum Type {
+    /// PICC type not known
     Unknown,
     /// PICC compliant with ISO/IEC 14443-4
     Iso14443_4,
@@ -95,7 +95,6 @@ impl From<u8> for Sak {
 }
 
 impl Sak {
-    #[allow(dead_code)]
     pub fn get_type(&self) -> Type {
         // https://www.nxp.com/docs/en/application-note/AN10833.pdf
         // 3.2 Coding of Select Acknowledge (SAK)

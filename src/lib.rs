@@ -513,6 +513,62 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
     pub fn set_antenna_gain(&mut self, gain: RxGain) -> Result<(), Error<E>> {
         self.write(Register::RFCfgReg, gain.into())
     }
+
+    /// Perform a low-level transceive operation, which both transmits and receives data.
+    ///
+    /// This function is generic over the maximum number of bytes that can be received.
+    ///
+    /// It is used to implement higher-level functions like [Mfrc522::mf_read] and [Mfrc522::mf_write].
+    /// Typically, you don't need to call this function directly,
+    /// but it was made part of the public interface to allow for custom commands.
+    pub fn transceive<const RX: usize>(
+        &mut self,
+        // the data to be sent
+        tx_buffer: &[u8],
+        // number of bits in the last byte that will be transmitted
+        tx_last_bits: u8,
+        // bit position for the first received bit to be stored in the FIFO buffer
+        rx_align_bits: u8,
+    ) -> Result<FifoData<RX>, Error<E>>
+    where
+        [u8; RX]: Sized,
+    {
+        // stop any ongoing command
+        self.command(Command::Idle)?;
+
+        // clear all interrupt flags
+        self.write(Register::ComIrqReg, 0x7f)?;
+
+        // flush FIFO buffer
+        self.fifo_flush()?;
+
+        // write data to transmit to the FIFO buffer
+        self.write_many(Register::FIFODataReg, tx_buffer)?;
+
+        // signal command
+        self.command(Command::Transceive)?;
+
+        // configure short frame and start transmission
+        self.write(
+            Register::BitFramingReg,
+            (1 << 7) | ((rx_align_bits & 0b0111) << 4) | (tx_last_bits & 0b0111),
+        )?;
+
+        // TODO timeout when connection to the MFRC522 is lost (?)
+        // wait for transmission + reception to complete
+        loop {
+            let irq = self.read(Register::ComIrqReg)?;
+
+            if irq & (RX_IRQ | ERR_IRQ | IDLE_IRQ) != 0 {
+                break;
+            } else if irq & TIMER_IRQ != 0 {
+                return Err(Error::Timeout);
+            }
+        }
+
+        self.check_error_register()?;
+        self.fifo_data()
+    }
 }
 
 // The private functions are implemented for all states.
@@ -570,56 +626,6 @@ impl<E, COMM: Interface<Error = E>, S: State> Mfrc522<COMM, S> {
         } else {
             Ok(())
         }
-    }
-
-    // Transmit + Receive
-    fn transceive<const RX: usize>(
-        &mut self,
-        // the data to be sent
-        tx_buffer: &[u8],
-        // number of bits in the last byte that will be transmitted
-        tx_last_bits: u8,
-        // bit position for the first received bit to be stored in the FIFO buffer
-        rx_align_bits: u8,
-    ) -> Result<FifoData<RX>, Error<E>>
-    where
-        [u8; RX]: Sized,
-    {
-        // stop any ongoing command
-        self.command(Command::Idle)?;
-
-        // clear all interrupt flags
-        self.write(Register::ComIrqReg, 0x7f)?;
-
-        // flush FIFO buffer
-        self.fifo_flush()?;
-
-        // write data to transmit to the FIFO buffer
-        self.write_many(Register::FIFODataReg, tx_buffer)?;
-
-        // signal command
-        self.command(Command::Transceive)?;
-
-        // configure short frame and start transmission
-        self.write(
-            Register::BitFramingReg,
-            (1 << 7) | ((rx_align_bits & 0b0111) << 4) | (tx_last_bits & 0b0111),
-        )?;
-
-        // TODO timeout when connection to the MFRC522 is lost (?)
-        // wait for transmission + reception to complete
-        loop {
-            let irq = self.read(Register::ComIrqReg)?;
-
-            if irq & (RX_IRQ | ERR_IRQ | IDLE_IRQ) != 0 {
-                break;
-            } else if irq & TIMER_IRQ != 0 {
-                return Err(Error::Timeout);
-            }
-        }
-
-        self.check_error_register()?;
-        self.fifo_data()
     }
 
     /// Get the data from the internal FIFO buffer
@@ -690,14 +696,15 @@ impl<E, COMM: Interface<Error = E>, S: State> Mfrc522<COMM, S> {
     }
 }
 
+/// Data read from the internal FIFO buffer
 #[derive(Debug, PartialEq)]
-struct FifoData<const L: usize> {
+pub struct FifoData<const L: usize> {
     /// The contents of the FIFO buffer
-    buffer: [u8; L],
+    pub buffer: [u8; L],
     /// The number of valid bytes in the buffer
-    valid_bytes: usize,
+    pub valid_bytes: usize,
     /// The number of valid bits in the last byte
-    valid_bits: usize,
+    pub valid_bits: usize,
 }
 
 impl<const L: usize> FifoData<L> {

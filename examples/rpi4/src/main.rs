@@ -11,7 +11,6 @@
 //! - GPIO11 = SCLK (SCK)
 //! - GPIO22 = NSS  (SDA)
 
-use embedded_hal_1 as embedded_hal;
 use linux_embedded_hal as hal;
 
 use std::fs::File;
@@ -70,7 +69,7 @@ fn main() -> Result<()> {
     delay.delay_ms(500u32); // delay sometimes necessary because `is_exported()` returns too early?
     let pin = pin.into_output_pin(embedded_hal::digital::PinState::High).unwrap();
 
-    let spi = ExclusiveDevice::new(spi, pin, Delay);
+    let spi = ExclusiveDevice::new(spi, pin, Delay)?;
     let itf = SpiInterface::new(spi);
     let mut mfrc522 = Mfrc522::new(itf).init()?;
 

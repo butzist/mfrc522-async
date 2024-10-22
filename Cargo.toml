@@ -22,16 +22,3 @@ heapless = "0.8"
 
 [dev-dependencies]
 embedded-hal-mock = { version = "0.10", features = ["eh1"] }
-anyhow = "1.0"
-
-[target.'cfg(target_os = "linux")'.dev-dependencies]
-linux-embedded-hal = "0.4.0"
-embedded-hal-bus = "0.1.0"
-
-[[example]]
-name = "rpi"
-required-features = ["std"]
-
-[[example]]
-name = "beagle"
-required-features = ["std"]

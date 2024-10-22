@@ -53,8 +53,7 @@
 //!
 //! # Example applications
 //!
-//! - [Raspberry Pi 4](https://gitlab.com/jspngh/rfid-rs/-/blob/master/examples/rpi.rs)
-//! - [Beaglebone Black](https://gitlab.com/jspngh/rfid-rs/-/blob/master/examples/beagle.rs)
+//! - [Raspberry Pi 4](https://gitlab.com/jspngh/mfrc522/-/tree/main/examples/rpi4)
 //! - [STM32L4](https://gitlab.com/jspngh/stm32l4-mfrc522)
 
 #![deny(unsafe_code, missing_docs)]

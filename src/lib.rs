@@ -54,7 +54,7 @@
 //! # Example applications
 //!
 //! - [Raspberry Pi 4](https://gitlab.com/jspngh/mfrc522/-/tree/main/examples/rpi4)
-//! - [STM32L4](https://gitlab.com/jspngh/stm32l4-mfrc522)
+//! - [STM32L4](https://gitlab.com/jspngh/mfrc522/-/tree/main/examples/stm32l4)
 
 #![deny(unsafe_code, missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]

@@ -87,10 +87,10 @@ fn main() -> Result<()> {
             if let Ok(uid) = mfrc522.select(&atqa) {
                 println!("UID: {:?}", uid.as_bytes());
 
-                if uid.as_bytes() == &CARD_UID {
+                if uid.as_bytes() == CARD_UID {
                     led.off();
                     println!("CARD");
-                } else if uid.as_bytes() == &TAG_UID {
+                } else if uid.as_bytes() == TAG_UID {
                     led.on();
                     println!("TAG");
                 }

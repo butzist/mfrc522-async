@@ -82,7 +82,9 @@ where
         for byte in buf.iter_mut() {
             *byte = ((reg as u8) << 1) | 0x80;
         }
-        buf.last_mut().map(|b| *b = 0);
+        if let Some(b) = buf.last_mut() {
+            *b = 0;
+        }
 
         let address = [((reg as u8) << 1) | 0x80];
         let mut operations = [Operation::Write(&address), Operation::TransferInPlace(buf)];
@@ -171,7 +173,7 @@ mod test {
         let expectations = [
             SpiTransaction::transaction_start(),
             SpiTransaction::write_vec([0x42, 0xfd].to_vec()),
-            SpiTransaction::transaction_end()
+            SpiTransaction::transaction_end(),
         ];
 
         let spi = SpiMock::new(&expectations);

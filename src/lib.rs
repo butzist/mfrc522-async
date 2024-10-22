@@ -54,6 +54,7 @@
 //! # Example applications
 //!
 //! - [Raspberry Pi 4](https://gitlab.com/jspngh/mfrc522/-/tree/main/examples/rpi4)
+//! - [Raspberry Pi Pico](https://gitlab.com/jspngh/mfrc522/-/tree/main/examples/rp2040)
 //! - [STM32L4](https://gitlab.com/jspngh/mfrc522/-/tree/main/examples/stm32l4)
 
 #![deny(unsafe_code, missing_docs)]

@@ -69,6 +69,7 @@ mod util;
 use comm::Interface;
 use error::Error;
 pub use picc::Type;
+pub use register::RxGain;
 use register::*;
 use util::Sealed;
 
@@ -99,7 +100,6 @@ impl Uid {
             Uid::Double(u) => u.get_type(),
             Uid::Triple(u) => u.get_type(),
         }
-
     }
 }
 
@@ -477,6 +477,14 @@ impl<E, COMM: Interface<Error = E>> Mfrc522<COMM, Initialized> {
         self.write(Register::ModWidthReg, 0x26)?;
 
         self.reqa()
+    }
+
+    /// Sets the antenna gain of the receiver
+    ///
+    /// Setting this to a high value could help if you have issues communicating with a card.
+    /// This should increase the *sensitivity* of the antenna, so it is able to detect weaker signals.
+    pub fn set_antenna_gain(&mut self, gain: RxGain) -> Result<(), Error<E>> {
+        self.write(Register::RFCfgReg, gain.into())
     }
 }
 

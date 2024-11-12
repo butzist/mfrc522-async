@@ -10,7 +10,7 @@ linux-embedded-hal = "0.4.0"
 embedded-hal-bus = "0.2.0"
 anyhow = "1.0"
 
-mfrc522 = { version = "0.7", features = ["std"] }
+mfrc522 = { version = "0.8", features = ["std"] }
 
 [patch.crates-io]
 mfrc522 = { path = "../../" }

@@ -18,7 +18,7 @@ rp-pico = "0.9"
 portable-atomic = { version = "1", features = ["critical-section"] }
 fugit = "0.3"
 
-mfrc522 = "0.7"
+mfrc522 = "0.8"
 
 # cargo build/run
 [profile.dev]

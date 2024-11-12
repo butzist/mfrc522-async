@@ -1,6 +1,6 @@
 [package]
 name = "mfrc522"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Jonas Spanoghe <jonas@spanoghe.net>", "Jorge Aparicio <jorge@japaric.io>"]
 edition = "2021"
 description = "A platform agnostic driver to interface the MFRC522 (RFID reader/writer)"

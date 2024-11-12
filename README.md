@@ -1,9 +1,9 @@
 # Rust MFRC522 driver
 
-This is a `no_std` driver for the MFRC522, an *ISO/IEC 14443 A/MIFARE*
-reader/writer IC.
+This is a `no_std` driver for the MFRC522, an *ISO/IEC 14443 A/MIFARE* reader/writer IC.
+
 This repository is an extension of [japaric/mfrc522](https://github.com/japaric/mfrc522)
-and the new home of the `mfrc522` crate.
+and the new home of the `mfrc522` crate.<br>
 For more information on the background of this repository, [go here](doc/more_info.md).
 
 What works:
@@ -17,12 +17,11 @@ What works:
 - [ ] Mifare Ultralight C 3DES authentication (no support planned)
 
 ## Examples
-In the `examples/` directory, you can find an example for the Raspberry
-Pi and BeagleBone Black.
-The BeagleBone example fully demonstrates the available functionality.
 
-This code has also been tested with the STM32L476 Nucleo board, if an
-extra example for this use-case would be required, please open an issue.
+In the `examples/` directory, you can find examples for:
+- STM32L4 (`no_std` + `embassy`)
+- Raspberry Pi 2040 (`no_std` + `rp-hal`)
+- Raspberry Pi 4 (`std`)
 
 ## License
 

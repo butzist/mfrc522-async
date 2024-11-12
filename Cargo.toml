@@ -6,8 +6,8 @@ edition = "2021"
 description = "A platform agnostic driver to interface the MFRC522 (RFID reader/writer)"
 documentation = "https://docs.rs/mfrc522"
 license = "MIT OR Apache-2.0"
-repository = "https://gitlab.com/jspngh/rfid-rs"
-homepage = "https://gitlab.com/jspngh/rfid-rs"
+repository = "https://gitlab.com/jspngh/mfrc522"
+homepage = "https://gitlab.com/jspngh/mfrc522"
 keywords = ["rfid", "mfrc522", "embedded-hal", "mifare"]
 categories = ["embedded", "hardware-support", "no-std"]
 

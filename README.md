@@ -8,6 +8,8 @@ For more information on the background of this repository, [go here](doc/more_in
 
 What works:
 - [x] SPI communication with the MFRC522
+- [x] I2C ommunication with the MFRC522
+- [ ] UART ommunication with the MFRC522
 - [x] Anticollision loop
 - [x] Select for 4-byte and 7-byte UIDs
 - [x] Mifare Classic authentication

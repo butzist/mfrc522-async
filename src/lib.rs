@@ -11,7 +11,7 @@
 //! - I2C
 //! - UART
 //!
-//! However, currently only SPI communication is implemented in this crate.
+//! However, currently only SPI and I2C communication is implemented in this crate.
 //!
 //! # Quickstart
 //! ```rust

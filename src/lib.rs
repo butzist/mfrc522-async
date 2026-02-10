@@ -154,14 +154,7 @@ where
             state: core::marker::PhantomData,
         }
     }
-}
 
-// The driver can transition to the `Initialized` state using this function
-impl<SPI, IRQ> Mfrc522<SPI, IRQ, Initialized>
-where
-    SPI: SpiDevice,
-    IRQ: Wait,
-{
     /// Initialize the MFRC522.
     ///
     /// This needs to be called before you can do any other operation.
@@ -201,7 +194,7 @@ where
         self.write_register(Register::DivIrqReg, 0x7F).await?;
 
         // Enable interrupts for REQA detection
-        self.write_register(Register::ComlEnReg, RX_IRQ | IDLE_IRQ | ERR_IRQ)
+        self.write_register(Register::ComlEnReg, RX_IRQ | IDLE_IRQ | ERR_IRQ | TIMER_IRQ)
             .await?;
         self.write_register(Register::DivlEnReg, CRC_IRQ).await?;
 
@@ -330,9 +323,7 @@ where
             tx[1] = 0x70; // NVB: 7 valid bytes
             tx[6] = tx[2] ^ tx[3] ^ tx[4] ^ tx[5]; // BCC
 
-            let crc = self
-                .calculate_crc(&[tx[0], tx[1], tx[2], tx[3], tx[4], tx[5], tx[6]])
-                .await?;
+            let crc = self.calculate_crc(&tx[..7]).await?;
             tx[7..].copy_from_slice(&crc);
 
             let rx = self.transceive::<3>(&tx[0..9], 0, 0).await?;
@@ -342,7 +333,7 @@ where
 
             let sak = Sak::from(rx.buffer[0]);
             let crc_a = &rx.buffer[1..];
-            let crc_verify = self.calculate_crc(&[rx.buffer[0]]).await?;
+            let crc_verify = self.calculate_crc(&rx.buffer[..1]).await?;
             if crc_a != crc_verify {
                 return Err(Error::Crc);
             }
@@ -416,15 +407,15 @@ where
         // Write data to FIFO
         self.write_many(Register::FIFODataReg, tx_buffer).await?;
 
+        // Start transceive command
+        self.command(register::Command::Transceive).await?;
+
         // Configure bit framing register for send/receive
         self.write_register(
             Register::BitFramingReg,
             (1 << 7) | ((rx_align_bits & 0b0111) << 4) | (tx_last_bits & 0b0111),
         )
         .await?;
-
-        // Start transceive command
-        self.command(register::Command::Transceive).await?;
 
         // Wait for IRQ to indicate operation completion with timeout
         self.wait_for_irq_source(50, RX_IRQ | IDLE_IRQ, 0).await?; // 50ms timeout for transceive
@@ -638,9 +629,8 @@ where
         reg: Register,
         val: u8,
     ) -> Result<(), Error<SPI::Error, IRQ::Error>> {
-        let mut tx = [((reg as u8) << 1) | 0x80, val];
-        let rx = [0; 2];
-        self.spi.transfer(&mut tx, &rx).await.map_err(Error::Comm)
+        let tx = [(reg as u8) << 1, val];
+        self.spi.write(&tx).await.map_err(Error::Comm)
     }
 
     async fn write_many(

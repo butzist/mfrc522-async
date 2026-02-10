@@ -1,8 +1,8 @@
 //! Constructor tests for MFRC522 driver
 
+use crate::{Mfrc522, Uninitialized};
 use embedded_hal_mock::eh1::digital::Mock as PinMock;
 use embedded_hal_mock::eh1::spi::Mock as SpiMock;
-use mfrc522_async::{Mfrc522, Uninitialized};
 
 #[tokio::test]
 async fn test_new_with_empty_expectations() {

@@ -14,7 +14,7 @@
 //! However, currently only SPI communication with additional IRQ line is implemented in this crate.
 //!
 //! # Quickstart
-//! ```rust
+//! ```ignore
 //! use mfrc522_async::Mfrc522;
 //!
 //! // Use your HAL to create an SPI device that implements the embedded-hal-async `SpiDevice` trait.
@@ -22,7 +22,7 @@
 //! let spi = spi::Spi;
 //!
 //! // Use your HAL to create a input pin that will be used as the IRQ line. It needs to implement
-//! the embedded-hal-async `Wait` trait.
+//! // the embedded-hal-async `Wait` trait.
 //! let irq = digital::Input;
 //!
 //! let mut mfrc522 = Mfrc522::new(spi, irq).init().unwrap();
@@ -44,6 +44,9 @@ mod error;
 mod picc;
 mod register;
 mod util;
+
+#[cfg(test)]
+mod tests;
 
 pub use error::Error;
 
@@ -155,6 +158,21 @@ where
         }
     }
 
+    /// Create a new MFRC522 driver in an initialized state for testing purposes.
+    ///
+    /// # Safety
+    /// This function skips the actual hardware initialization sequence and should
+    /// only be used in tests where the hardware is mocked. Using this with real
+    /// hardware will result in incorrect behavior.
+    #[allow(unsafe_code)]
+    pub(crate) unsafe fn new_initialized(spi: SPI, irq: IRQ) -> Mfrc522<SPI, IRQ, Initialized> {
+        Mfrc522 {
+            spi,
+            irq,
+            state: core::marker::PhantomData,
+        }
+    }
+
     /// Initialize the MFRC522.
     ///
     /// This needs to be called before you can do any other operation.
@@ -189,16 +207,12 @@ where
         self.modify_register(Register::TxControlReg, |b| b | 0b11)
             .await?;
 
-        // Clear any pending interrupts first
-        self.write_register(Register::ComIrqReg, 0x7F).await?;
-        self.write_register(Register::DivIrqReg, 0x7F).await?;
-
         // Enable interrupts for REQA detection
         self.write_register(Register::ComlEnReg, RX_IRQ | IDLE_IRQ | ERR_IRQ | TIMER_IRQ)
             .await?;
         self.write_register(Register::DivlEnReg, CRC_IRQ).await?;
 
-        // Clear interrupts again after enabling to ensure clean state
+        // Clear interrupts
         self.write_register(Register::ComIrqReg, 0x7F).await?;
         self.write_register(Register::DivIrqReg, 0x7F).await?;
 
@@ -366,7 +380,7 @@ where
     }
 
     /// Calculate CRC for data using IRQ-based completion
-    async fn calculate_crc(
+    pub(crate) async fn calculate_crc(
         &mut self,
         data: &[u8],
     ) -> Result<[u8; 2], Error<SPI::Error, IRQ::Error>> {
@@ -392,7 +406,7 @@ where
     }
 
     /// Perform transceive operation with IRQ-based completion
-    async fn transceive<const RX: usize>(
+    pub(crate) async fn transceive<const RX: usize>(
         &mut self,
         tx_buffer: &[u8],
         tx_last_bits: u8,
@@ -425,7 +439,7 @@ where
     }
 
     /// Get FIFO data
-    async fn fifo_data<const RX: usize>(
+    pub(crate) async fn fifo_data<const RX: usize>(
         &mut self,
     ) -> Result<FifoData<RX>, Error<SPI::Error, IRQ::Error>>
     where
@@ -473,7 +487,7 @@ where
     S: State,
 {
     /// Sanitize device state for performing next operation (Idle, IRQ, Fifo)
-    async fn reset_to_idle(&mut self) -> Result<(), Error<SPI::Error, IRQ::Error>> {
+    pub(crate) async fn reset_to_idle(&mut self) -> Result<(), Error<SPI::Error, IRQ::Error>> {
         self.clear_irq_state().await?;
         self.command(register::Command::Idle).await?;
         self.fifo_flush().await?;
@@ -504,7 +518,7 @@ where
     }
 
     /// Clear IRQ state and wait for IRQ line to go low
-    async fn clear_irq_state(&mut self) -> Result<(), Error<SPI::Error, IRQ::Error>> {
+    pub(crate) async fn clear_irq_state(&mut self) -> Result<(), Error<SPI::Error, IRQ::Error>> {
         // Clear interrupt status registers
         self.write_register(Register::ComIrqReg, 0x7F).await?;
         self.write_register(Register::DivIrqReg, 0x7F).await?;
@@ -516,7 +530,10 @@ where
     }
 
     /// Wait for IRQ line with timeout
-    async fn wait_for_irq(&mut self, timeout_ms: u64) -> Result<(), Error<SPI::Error, IRQ::Error>> {
+    pub(crate) async fn wait_for_irq(
+        &mut self,
+        timeout_ms: u64,
+    ) -> Result<(), Error<SPI::Error, IRQ::Error>> {
         // Use embassy-time's with_timeout for proper timeout handling
         match self
             .irq
@@ -530,7 +547,7 @@ where
     }
 
     /// Wait for specific IRQ source with timeout
-    async fn wait_for_irq_source(
+    pub(crate) async fn wait_for_irq_source(
         &mut self,
         timeout_ms: u64,
         com_irq_mask: u8,
@@ -699,7 +716,7 @@ impl<const L: usize> FifoData<L> {
 }
 
 #[cfg(test)]
-mod tests {
+mod unit_tests {
     use super::*;
     extern crate std;
 

@@ -30,6 +30,7 @@ embedded-hal-mock = { version = "0.11", default-features = false, features = [
 ] }
 futures = { version = "0.3", default-features = false }
 tokio = { version = "1", features = ["rt", "macros"] }
+embassy-time = { version = "0.5", features = ["std", "generic-queue-8"] }
 
 [features]
 default = []

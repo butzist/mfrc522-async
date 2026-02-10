@@ -57,7 +57,7 @@ pub enum Command {
 }
 
 /// PICC Type
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Type {
     /// PICC type not known
     Unknown,
@@ -95,6 +95,7 @@ impl From<u8> for Sak {
 }
 
 impl Sak {
+    /// Get the PICC type from SAK byte
     pub fn get_type(&self) -> Type {
         // https://www.nxp.com/docs/en/application-note/AN10833.pdf
         // 3.2 Coding of Select Acknowledge (SAK)

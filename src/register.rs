@@ -1,6 +1,7 @@
 //! MFRC522 register definitions
 
 /// List of all registers for the MFRC522
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum Register {
@@ -143,6 +144,7 @@ impl From<RxGain> for u8 {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 /// List of different commands for the MFRC522

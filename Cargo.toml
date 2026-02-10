@@ -1,24 +1,36 @@
 [package]
-name = "mfrc522"
-version = "0.8.0"
-authors = ["Jonas Spanoghe <jonas@spanoghe.net>", "Jorge Aparicio <jorge@japaric.io>"]
-edition = "2021"
+name = "mfrc522-async"
+version = "0.1.0"
+authors = [
+  "Adam Szalkowski <adam@szalkowski.de>",
+  "Jonas Spanoghe <jonas@spanoghe.net>",
+  "Jorge Aparicio <jorge@japaric.io>",
+]
+edition = "2024"
 description = "A platform agnostic driver to interface the MFRC522 (RFID reader/writer)"
-documentation = "https://docs.rs/mfrc522"
+documentation = "https://docs.rs/mfrc522-async"
 license = "MIT OR Apache-2.0"
-repository = "https://gitlab.com/jspngh/mfrc522"
-homepage = "https://gitlab.com/jspngh/mfrc522"
+repository = "https://github.com/butzist/mfrc522-async"
+homepage = "https://gitlab.com/butzist/mfrc522-async"
 keywords = ["rfid", "mfrc522", "embedded-hal", "mifare"]
 categories = ["embedded", "hardware-support", "no-std"]
 
-[features]
-std = []
-eh02 = ["dep:embedded-hal-02"]
-
 [dependencies]
-embedded-hal-02 = { package = "embedded-hal", version = "0.2", optional = true }
-embedded-hal-1 = { package = "embedded-hal", version = "1.0" }
-heapless = "0.8"
+embedded-hal-async = "1"
+embassy-futures = { version = "0.1", default-features = false }
+embassy-time = { version = "0.5", default-features = false }
+
+defmt = { version = "1", optional = true }
 
 [dev-dependencies]
-embedded-hal-mock = { version = "0.10", features = ["eh1"] }
+embedded-hal = "1"
+embedded-hal-mock = { version = "0.11", default-features = false, features = [
+  "eh1",
+  "embedded-hal-async",
+] }
+futures = { version = "0.3", default-features = false }
+tokio = { version = "1", features = ["rt", "macros"] }
+
+[features]
+default = []
+defmt = ["dep:defmt"]

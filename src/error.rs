@@ -1,6 +1,7 @@
 /// Error type used in this crate
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug, PartialEq)]
-pub enum Error<E> {
+pub enum Error<SpiE, GpioE> {
     /// Wrong Block Character Check (BCC)
     Bcc,
     /// FIFO buffer overflow
@@ -27,31 +28,8 @@ pub enum Error<E> {
     NoRoom,
     /// Proprietary frames, commands or protocols used
     Proprietary,
+    /// GPIO wait error
+    Gpio(GpioE),
     /// Communication error on the underlying interface
-    Comm(E),
-}
-
-#[cfg(feature = "std")]
-impl<E> std::fmt::Display for Error<E> {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
-    }
-}
-
-#[cfg(feature = "std")]
-impl<E> std::error::Error for Error<E>
-where
-    E: std::fmt::Debug,
-{
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-
-    fn description(&self) -> &str {
-        "description() is deprecated; use Display"
-    }
-
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        self.source()
-    }
+    Comm(SpiE),
 }

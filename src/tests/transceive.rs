@@ -42,13 +42,14 @@ async fn test_transceive() {
         PinTransaction::wait_for_state(embedded_hal_mock::eh1::digital::State::High),
     ];
 
-    let spi = SpiMock::new(&expectations);
-    let mut spi_clone = spi.clone();
-    let irq = PinMock::new(&pin_expectations);
-    let mut irq_clone = irq.clone();
+    let mut spi = SpiMock::new(&expectations);
+    let mut irq = PinMock::new(&pin_expectations);
+
+    // Enable pin - empty expectations since we're not testing enable/disable
+    let mut enable = PinMock::new(&[]);
 
     // Create initialized MFRC522 for testing
-    let mut mfrc522 = unsafe { Mfrc522::new_initialized(spi, irq) };
+    let mut mfrc522 = unsafe { Mfrc522::new_initialized(&mut spi, &mut irq, &mut enable) };
 
     let result = mfrc522.transceive::<4>(&[0xfe, 0xed], 0xf9, 0xfa).await;
 
@@ -61,6 +62,7 @@ async fn test_transceive() {
         })
     );
 
-    spi_clone.done();
-    irq_clone.done();
+    spi.done();
+    irq.done();
+    enable.done();
 }

@@ -14,19 +14,19 @@ async fn test_version() {
         SpiTransaction::transaction_end(),
     ];
 
-    let spi = SpiMock::new(&expectations);
-    let mut spi_clone = spi.clone();
-    let irq = PinMock::new(&[]);
-    let mut irq_clone = irq.clone();
+    let mut spi = SpiMock::new(&expectations);
+    let mut irq = PinMock::new(&[]);
+    let mut enable = PinMock::new(&[]);
 
     // Create MFRC522 and directly test version() which doesn't require init
-    let mut mfrc522 = Mfrc522::new(spi, irq);
+    let mut mfrc522 = Mfrc522::new(&mut spi, &mut irq, &mut enable);
 
     // Test the version() method
     let version = mfrc522.version().await.unwrap();
     assert_eq!(version, 0x91); // Expected version for MFRC522
 
     // Verify done is called on mocks
-    spi_clone.done();
-    irq_clone.done();
+    spi.done();
+    irq.done();
+    enable.done();
 }

@@ -1,7 +1,7 @@
 //! Initialization tests for MFRC522 driver
 
 use crate::Mfrc522;
-use embedded_hal_mock::eh1::digital::Mock as PinMock;
+use embedded_hal_mock::eh1::digital::{Mock as PinMock, Transaction as PinTransaction};
 use embedded_hal_mock::eh1::spi::{Mock as SpiMock, Transaction as SpiTransaction};
 
 #[tokio::test]
@@ -68,14 +68,26 @@ async fn test_init_full_sequence_expectations() {
         SpiTransaction::transaction_end(),
     ];
 
+    // Enable pin expectations - set_high() is called during enable()
+    let enable_expectations = [PinTransaction::set(
+        embedded_hal_mock::eh1::digital::State::High,
+    )];
+
     // Create mocks
     let mut spi = SpiMock::new(&expectations);
     let mut irq = PinMock::new(&[]);
+    let mut enable = PinMock::new(&enable_expectations);
 
-    // Create MFRC522 and initialize
-    let _mfrc522 = Mfrc522::new(spi.clone(), irq.clone()).init().await.unwrap();
+    // Create MFRC522, enable, and initialize
+    let _mfrc522 = Mfrc522::new(&mut spi, &mut irq, &mut enable)
+        .enable()
+        .unwrap()
+        .init()
+        .await
+        .unwrap();
 
     // Verify done is called on mocks
     spi.done();
     irq.done();
+    enable.done();
 }

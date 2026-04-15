@@ -36,10 +36,11 @@ use mfrc522_async::{Mfrc522, Error};
 use embedded_hal_async::{digital::Wait, spi::SpiDevice};
 
 // Create driver instance
-let mut mfrc522 = Mfrc522::new(spi_device, irq_pin);
+let mut mfrc522 = Mfrc522::new(spi_device, irq_pin, enable_pin);
 
-// Initialize the MFRC522
-mfrc522.init().await?;
+// Power up and initialize the MFRC522
+let mfrc522 = mfrc522.enable().unwrap();
+let mfrc522 = mfrc522.init().await?;
 
 // Request card presence (interrupt-driven)
 let atqa = mfrc522.reqa().await?;

@@ -25,7 +25,10 @@
 //! // the embedded-hal-async `Wait` trait.
 //! let irq = digital::Input;
 //!
-//! let mut mfrc522 = Mfrc522::new(spi, irq).init().unwrap();
+//! // Use your HAL to create an output pin for the enable signal.
+//! let enable = digital::Output;
+//!
+//! let mut mfrc522 = Mfrc522::new(spi, irq, enable).enable().unwrap().init().await.unwrap();
 //!
 //! // The reported version is expected to be 0x91 or 0x92
 //! let mfrc522_version = mfrc522.version().unwrap();
@@ -37,6 +40,7 @@
 #![deny(unsafe_code, missing_docs)]
 
 use embassy_time::{Duration, WithTimeout};
+use embedded_hal::digital::{OutputPin, StatefulOutputPin};
 use embedded_hal_async::digital::Wait;
 use embedded_hal_async::spi::{Operation, SpiDevice};
 
@@ -48,7 +52,7 @@ mod util;
 #[cfg(test)]
 mod tests;
 
-pub use error::Error;
+pub use error::{EnableError, Error, InitError};
 
 pub use picc::{Command, Sak, Type};
 pub use register::{
@@ -75,6 +79,7 @@ pub enum Uid {
 
 impl Uid {
     /// Get the UID as a byte slice
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         match self {
             Uid::Single(u) => u.as_bytes(),
@@ -84,6 +89,7 @@ impl Uid {
     }
 
     /// Get the type of the PICC that returned the UID
+    #[inline]
     pub fn get_type(&self) -> Type {
         match self {
             Uid::Single(u) => u.get_type(),
@@ -104,6 +110,7 @@ where
 
 impl<const T: usize> GenericUid<T> {
     /// Create a GenericUid from a byte array and a SAK byte.
+    #[inline]
     pub fn new(bytes: [u8; T], sak_byte: u8) -> Self {
         Self {
             bytes,
@@ -112,11 +119,13 @@ impl<const T: usize> GenericUid<T> {
     }
 
     /// Get the underlying bytes of the UID
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
 
     /// Get the type of the PICC
+    #[inline]
     pub fn get_type(&self) -> Type {
         self.sak.get_type()
     }
@@ -127,33 +136,192 @@ impl<const T: usize> GenericUid<T> {
 /// This trait cannot be implemented outside of this crate.
 pub trait State: Sealed {}
 
-/// The MFRC522 driver starts in this state and needs to be initialized before it can be used.
+/// The MFRC522 driver is in this initial unknown state.
+pub enum Unknown {}
+/// The MFRC522 driver is in this state after successful disable - hardware is powered off.
+pub enum Disabled {}
+/// The MFRC522 driver starts in this state after enable() and needs to be initialized before it can be used.
 pub enum Uninitialized {}
 /// The MFRC522 driver is ready for use.
 pub enum Initialized {}
 
+impl State for Unknown {}
+impl State for Disabled {}
 impl State for Uninitialized {}
 impl State for Initialized {}
+impl Sealed for Unknown {}
+impl Sealed for Disabled {}
 impl Sealed for Uninitialized {}
 impl Sealed for Initialized {}
 
+/// Represents the power state of the MFRC522 hardware after checking.
+pub enum PowerState<SPI, IRQ, EN> {
+    /// The MFRC522 hardware is enabled (EN pin is high).
+    Enabled(Mfrc522<SPI, IRQ, EN, Uninitialized>),
+    /// The MFRC522 hardware is disabled (EN pin is low).
+    Disabled(Mfrc522<SPI, IRQ, EN, Disabled>),
+}
+
+impl<SPI, IRQ, EN> PowerState<SPI, IRQ, EN> {
+    /// Consume the `PowerState` and return the inner device.
+    #[inline]
+    pub fn into_device(self) -> Mfrc522<SPI, IRQ, EN, Unknown> {
+        match self {
+            PowerState::Enabled(m) => Mfrc522 {
+                spi: m.spi,
+                irq: m.irq,
+                enable: m.enable,
+                state: core::marker::PhantomData,
+            },
+            PowerState::Disabled(m) => Mfrc522 {
+                spi: m.spi,
+                irq: m.irq,
+                enable: m.enable,
+                state: core::marker::PhantomData,
+            },
+        }
+    }
+}
+
 /// Async MFRC522 driver
-pub struct Mfrc522<SPI, IRQ, S: State> {
+pub struct Mfrc522<SPI, IRQ, EN, S: State> {
     spi: SPI,
     irq: IRQ,
+    enable: EN,
     state: core::marker::PhantomData<S>,
 }
 
-impl<SPI, IRQ> Mfrc522<SPI, IRQ, Uninitialized>
+impl<SPI, IRQ, EN> Mfrc522<SPI, IRQ, EN, Unknown>
 where
     SPI: SpiDevice,
     IRQ: Wait,
+    EN: OutputPin<Error = IRQ::Error>,
 {
     /// Create a new MFRC522 driver from the communication interface.
-    pub fn new(spi: SPI, irq: IRQ) -> Self {
+    pub fn new(spi: SPI, irq: IRQ, enable: EN) -> Self {
         Self {
             spi,
             irq,
+            enable,
+            state: core::marker::PhantomData,
+        }
+    }
+
+    /// Enable the MFRC522 by setting the enable pin high.
+    ///
+    /// This consumes the device and returns it in the `Uninitialized` state,
+    /// ready to be initialized with `init()`.
+    #[allow(clippy::type_complexity)]
+    pub fn enable(
+        mut self,
+    ) -> Result<Mfrc522<SPI, IRQ, EN, Uninitialized>, EnableError<SPI, IRQ, EN>> {
+        match self.enable.set_high() {
+            Ok(()) => Ok(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            }),
+            Err(e) => Err(EnableError::new(e, self)),
+        }
+    }
+
+    /// Disable the MFRC522 by setting the enable pin low.
+    #[allow(clippy::type_complexity)]
+    pub fn disable(mut self) -> Result<Mfrc522<SPI, IRQ, EN, Disabled>, EnableError<SPI, IRQ, EN>> {
+        match self.enable.set_low() {
+            Ok(()) => Ok(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            }),
+            Err(e) => Err(EnableError::new(e, self)),
+        }
+    }
+}
+
+impl<SPI, IRQ, EN> Mfrc522<SPI, IRQ, EN, Unknown>
+where
+    SPI: SpiDevice,
+    IRQ: Wait,
+    EN: StatefulOutputPin<Error = IRQ::Error>,
+{
+    /// Check the current power state of the MFRC522.
+    ///
+    /// Returns `PowerState::Enabled` with the device in `Uninitialized` state if the enable pin is high,
+    /// or `PowerState::Disabled` with the device in `Disabled` state if the enable pin is low.
+    pub fn check_state(mut self) -> Result<PowerState<SPI, IRQ, EN>, EnableError<SPI, IRQ, EN>> {
+        match self.enable.is_set_high() {
+            Ok(true) => Ok(PowerState::Enabled(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            })),
+            Ok(false) => Ok(PowerState::Disabled(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            })),
+            Err(e) => Err(EnableError::new(e, self)),
+        }
+    }
+}
+
+impl<SPI, IRQ, EN> Mfrc522<SPI, IRQ, EN, Disabled>
+where
+    SPI: SpiDevice,
+    IRQ: Wait,
+    EN: OutputPin<Error = IRQ::Error>,
+{
+    /// Return to the unknown state.
+    ///
+    /// This loses track of the hardware's enable pin state.
+    pub fn into_unknown(self) -> Mfrc522<SPI, IRQ, EN, Unknown> {
+        Mfrc522 {
+            spi: self.spi,
+            irq: self.irq,
+            enable: self.enable,
+            state: core::marker::PhantomData,
+        }
+    }
+
+    /// Enable the MFRC522 by setting the enable pin high.
+    ///
+    /// This consumes the device and returns it in the `Uninitialized` state,
+    /// ready to be initialized with `init()`.
+    #[allow(clippy::type_complexity)]
+    pub fn enable(
+        mut self,
+    ) -> Result<Mfrc522<SPI, IRQ, EN, Uninitialized>, EnableError<SPI, IRQ, EN>> {
+        match self.enable.set_high() {
+            Ok(()) => Ok(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            }),
+            Err(e) => Err(EnableError::new(e, self.into_unknown())),
+        }
+    }
+}
+
+impl<SPI, IRQ, EN> Mfrc522<SPI, IRQ, EN, Uninitialized>
+where
+    SPI: SpiDevice,
+    IRQ: Wait,
+    EN: OutputPin<Error = IRQ::Error>,
+{
+    /// Return to the unknown state.
+    ///
+    /// This loses track of the hardware's enable pin state.
+    pub fn into_unknown(self) -> Mfrc522<SPI, IRQ, EN, Unknown> {
+        Mfrc522 {
+            spi: self.spi,
+            irq: self.irq,
+            enable: self.enable,
             state: core::marker::PhantomData,
         }
     }
@@ -164,11 +332,16 @@ where
     /// This function skips the actual hardware initialization sequence and should
     /// only be used in tests where the hardware is mocked. Using this with real
     /// hardware will result in incorrect behavior.
-    #[allow(unsafe_code)]
-    pub(crate) unsafe fn new_initialized(spi: SPI, irq: IRQ) -> Mfrc522<SPI, IRQ, Initialized> {
+    #[allow(unsafe_code, dead_code)]
+    pub(crate) unsafe fn new_initialized(
+        spi: SPI,
+        irq: IRQ,
+        enable: EN,
+    ) -> Mfrc522<SPI, IRQ, EN, Initialized> {
         Mfrc522 {
             spi,
             irq,
+            enable,
             state: core::marker::PhantomData,
         }
     }
@@ -178,58 +351,141 @@ where
     /// This needs to be called before you can do any other operation.
     pub async fn init(
         mut self,
-    ) -> Result<Mfrc522<SPI, IRQ, Initialized>, Error<SPI::Error, IRQ::Error>> {
-        self.reset().await?;
-        self.write_register(Register::TxModeReg, 0x00).await?;
-        self.write_register(Register::RxModeReg, 0x00).await?;
-        self.write_register(Register::ModWidthReg, 0x26).await?;
+    ) -> Result<
+        Mfrc522<SPI, IRQ, EN, Initialized>,
+        InitError<SPI, IRQ, EN, Error<SPI::Error, IRQ::Error>>,
+    > {
+        if let Err(e) = self.reset().await {
+            return Err(InitError::new(e, self));
+        }
+        if let Err(e) = self.write_register(Register::TxModeReg, 0x00).await {
+            return Err(InitError::new(e, self));
+        }
+        if let Err(e) = self.write_register(Register::RxModeReg, 0x00).await {
+            return Err(InitError::new(e, self));
+        }
+        if let Err(e) = self.write_register(Register::ModWidthReg, 0x26).await {
+            return Err(InitError::new(e, self));
+        }
 
         // Configure the timer, so we can get a timeout if something goes wrong
         // when communicating with a PICC:
         // - Set timer to start automatically at the end of the transmission
-        self.write_register(Register::TModeReg, 0x80).await?;
+        if let Err(e) = self.write_register(Register::TModeReg, 0x80).await {
+            return Err(InitError::new(e, self));
+        }
         // - Configure the prescaler to determine the timer frequency:
         //   f_timer = 13.56 MHz / (2 * TPreScaler + 1)
         //   so for 40kHz frequency (25μs period), TPreScaler = 0x0A9
-        self.write_register(Register::TPrescalerReg, 0xA9).await?;
+        if let Err(e) = self.write_register(Register::TPrescalerReg, 0xA9).await {
+            return Err(InitError::new(e, self));
+        }
         // - Set the reload value to determine the timeout
         //   for a 25ms timeout, we need a value of 1000 = 0x3E8
-        self.write_register(Register::TReloadRegHigh, 0x03).await?;
-        self.write_register(Register::TReloadRegLow, 0xE8).await?;
+        if let Err(e) = self.write_register(Register::TReloadRegHigh, 0x03).await {
+            return Err(InitError::new(e, self));
+        }
+        if let Err(e) = self.write_register(Register::TReloadRegLow, 0xE8).await {
+            return Err(InitError::new(e, self));
+        }
 
         // TODO: may not be necessary?
-        self.write_register(Register::TxASKReg, FORCE_100_ASK)
-            .await?;
+        if let Err(e) = self.write_register(Register::TxASKReg, FORCE_100_ASK).await {
+            return Err(InitError::new(e, self));
+        }
         // Set preset value of CRC coprocessor according to ISO 14443-3 part 6.2.4
-        self.write_register(Register::ModeReg, (0x3f & (!0b11)) | 0b01)
-            .await?;
+        if let Err(e) = self
+            .write_register(Register::ModeReg, (0x3f & (!0b11)) | 0b01)
+            .await
+        {
+            return Err(InitError::new(e, self));
+        }
         // Enable antenna
-        self.modify_register(Register::TxControlReg, |b| b | 0b11)
-            .await?;
+        if let Err(e) = self
+            .modify_register(Register::TxControlReg, |b| b | 0b11)
+            .await
+        {
+            return Err(InitError::new(e, self));
+        }
 
         // Enable interrupts for REQA detection
-        self.write_register(Register::ComlEnReg, RX_IRQ | IDLE_IRQ | ERR_IRQ | TIMER_IRQ)
-            .await?;
-        self.write_register(Register::DivlEnReg, CRC_IRQ).await?;
+        if let Err(e) = self
+            .write_register(Register::ComlEnReg, RX_IRQ | IDLE_IRQ | ERR_IRQ | TIMER_IRQ)
+            .await
+        {
+            return Err(InitError::new(e, self));
+        }
+        if let Err(e) = self.write_register(Register::DivlEnReg, CRC_IRQ).await {
+            return Err(InitError::new(e, self));
+        }
 
         // Clear interrupts
-        self.write_register(Register::ComIrqReg, 0x7F).await?;
-        self.write_register(Register::DivIrqReg, 0x7F).await?;
+        if let Err(e) = self.write_register(Register::ComIrqReg, 0x7F).await {
+            return Err(InitError::new(e, self));
+        }
+        if let Err(e) = self.write_register(Register::DivIrqReg, 0x7F).await {
+            return Err(InitError::new(e, self));
+        }
 
         Ok(Mfrc522 {
             spi: self.spi,
             irq: self.irq,
+            enable: self.enable,
             state: core::marker::PhantomData,
         })
     }
+
+    /// Disable the MFRC522 by setting the enable pin low.
+    ///
+    /// This consumes the device and returns it in the `Disabled` state.
+    #[allow(clippy::type_complexity)]
+    pub fn disable(mut self) -> Result<Mfrc522<SPI, IRQ, EN, Disabled>, EnableError<SPI, IRQ, EN>> {
+        match self.enable.set_low() {
+            Ok(()) => Ok(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            }),
+            Err(e) => Err(EnableError::new(e, self.into_unknown())),
+        }
+    }
 }
 
-// The public functions can only be used after initializing
-impl<SPI, IRQ> Mfrc522<SPI, IRQ, Initialized>
+impl<SPI, IRQ, EN> Mfrc522<SPI, IRQ, EN, Initialized>
 where
     SPI: SpiDevice,
     IRQ: Wait,
+    EN: OutputPin<Error = IRQ::Error>,
 {
+    /// Return to the unknown state.
+    ///
+    /// This loses track of the hardware's enable pin state.
+    pub fn into_unknown(self) -> Mfrc522<SPI, IRQ, EN, Unknown> {
+        Mfrc522 {
+            spi: self.spi,
+            irq: self.irq,
+            enable: self.enable,
+            state: core::marker::PhantomData,
+        }
+    }
+
+    /// Disable the MFRC522 by setting the enable pin low.
+    ///
+    /// This consumes the device and returns it in the `Disabled` state.
+    #[allow(clippy::type_complexity)]
+    pub fn disable(mut self) -> Result<Mfrc522<SPI, IRQ, EN, Disabled>, EnableError<SPI, IRQ, EN>> {
+        match self.enable.set_low() {
+            Ok(()) => Ok(Mfrc522 {
+                spi: self.spi,
+                irq: self.irq,
+                enable: self.enable,
+                state: core::marker::PhantomData,
+            }),
+            Err(e) => Err(EnableError::new(e, self.into_unknown())),
+        }
+    }
+
     /// Send REQA command and wait for response using IRQ
     pub async fn reqa(&mut self) -> Result<AtqA, Error<SPI::Error, IRQ::Error>> {
         // Prepare for next command
@@ -480,10 +736,11 @@ where
     }
 }
 
-impl<SPI, IRQ, S> Mfrc522<SPI, IRQ, S>
+impl<SPI, IRQ, EN, S> Mfrc522<SPI, IRQ, EN, S>
 where
     SPI: SpiDevice,
     IRQ: Wait,
+    EN: OutputPin,
     S: State,
 {
     /// Sanitize device state for performing next operation (Idle, IRQ, Fifo)
@@ -580,17 +837,20 @@ where
     }
 
     /// Release the underlying communication channel
-    pub fn release(self) -> (SPI, IRQ) {
-        (self.spi, self.irq)
+    #[inline]
+    pub fn release(self) -> (SPI, IRQ, EN) {
+        (self.spi, self.irq, self.enable)
     }
 
     /// Flush the internal FIFO buffer
+    #[inline]
     async fn fifo_flush(&mut self) -> Result<(), Error<SPI::Error, IRQ::Error>> {
         self.write_register(Register::FIFOLevelReg, FLUSH_BUFFER)
             .await
     }
 
     /// Send a command
+    #[inline]
     async fn command(
         &mut self,
         command: register::Command,
@@ -600,14 +860,15 @@ where
     }
 
     /// Reset the chip
+    #[inline]
     async fn reset(&mut self) -> Result<(), Error<SPI::Error, IRQ::Error>> {
         self.command(register::Command::SoftReset).await?;
         while self.read_register(Register::CommandReg).await? & POWER_DOWN != 0 {}
-
         Ok(())
     }
 
     // SPI helper methods
+    #[inline]
     async fn read_register(&mut self, reg: Register) -> Result<u8, Error<SPI::Error, IRQ::Error>> {
         let mut buffer = [((reg as u8) << 1) | 0x80, 0];
         self.spi
@@ -617,6 +878,7 @@ where
         Ok(buffer[1])
     }
 
+    #[inline]
     async fn read_many(
         &mut self,
         reg: Register,
@@ -641,6 +903,7 @@ where
         Ok(())
     }
 
+    #[inline]
     async fn write_register(
         &mut self,
         reg: Register,
@@ -650,6 +913,7 @@ where
         self.spi.write(&tx).await.map_err(Error::Comm)
     }
 
+    #[inline]
     async fn write_many(
         &mut self,
         reg: Register,
@@ -663,6 +927,7 @@ where
             .map_err(Error::Comm)
     }
 
+    #[inline]
     async fn modify_register<F>(
         &mut self,
         reg: Register,
@@ -689,6 +954,7 @@ pub struct FifoData<const L: usize> {
 
 impl<const L: usize> FifoData<L> {
     /// Copies FIFO data to destination buffer.
+    #[inline]
     fn copy_bits_to<SpiE, GpioE>(
         &self,
         dst: &mut [u8],

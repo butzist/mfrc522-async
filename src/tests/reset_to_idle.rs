@@ -13,24 +13,26 @@ async fn test_reset_to_idle() {
     let mut expectations = Default::default();
     add_reset_to_idle_sequence(&mut expectations);
 
-    let spi = SpiMock::new(&expectations);
-    let mut spi_clone = spi.clone();
+    let mut spi = SpiMock::new(&expectations);
 
     // Mock the wait_for_low() call from clear_irq_state()
     let irq_expectations = [PinTransaction::new(TransactionKind::WaitForState(
         State::Low,
     ))];
-    let irq = PinMock::new(&irq_expectations);
-    let mut irq_clone = irq.clone();
+    let mut irq = PinMock::new(&irq_expectations);
+
+    // Enable pin - empty expectations since we're not testing enable/disable
+    let mut enable = PinMock::new(&[]);
 
     // Create initialized MFRC522 for testing
-    let mut mfrc522 = unsafe { Mfrc522::new_initialized(spi, irq) };
+    let mut mfrc522 = unsafe { Mfrc522::new_initialized(&mut spi, &mut irq, &mut enable) };
 
     // Call reset_to_idle() - this should match the expectations above
     let result = mfrc522.reset_to_idle().await;
 
     assert_eq!(result, Ok(()));
 
-    spi_clone.done();
-    irq_clone.done();
+    spi.done();
+    irq.done();
+    enable.done();
 }
